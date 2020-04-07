@@ -12,6 +12,18 @@ class Controls
 {
     public:
 
+    struct PerformArgs                                                                                                                     
+    {                                                                                                                                      
+        Controls *obj;                                                                                                                     
+        std::string error;
+        std::string movieid;
+        std::string personid;
+        std::string moviename;
+        std::string personname;
+        USER_RESULT result;
+        MEDIA_COMMAND_TYPE type;                                                                                                           
+    };     
+
     // Constructor
     Controls();
     // Destructor
@@ -21,8 +33,8 @@ class Controls
     void DeInit(); 
     static void* Start(void* obj);
     void Start(); 
-    static void* PerformAction(void* obj);
-    void PerformAction(); 
+    static void *PerformAction(void* obj); 
+    void PerformAction(PerformArgs *pArgsIn);
     static void* CheckUpButton(void* obj);
     void CheckUpButton(); 
     static void* CheckDownButton(void* obj);
@@ -31,9 +43,10 @@ class Controls
     void GreenLedBlink(); 
     void SendToLcd(const std::string &rInStr); 
     void SendErrorToLcd(const std::string &rInStr); 
-    void PerformCheckOut(); 
-    void PerformCheckIn(); 
-    void Read(); 
+    void WriteLcd(const Lcd::CHECK_IO &rcheck); 
+    void Read(PerformArgs *pArgsIn);
+    void waitForEncoderTick(uint8_t pin);
+    void PerformCheckOut(PerformArgs *pArgsIn);
 
 protected:
 

@@ -150,11 +150,12 @@ DVD::DVD(std::string inTitle)
 	title = inTitle;
 }
 
-DVD::DVD(std::string inTitle, std::string inId)
+DVD::DVD(std::string inTitle, std::string inMovieId, std::string inPersonId)
 {
 	media = mediaDVD;
 	title = inTitle;
-	mRfId = inId;
+	mMovieRfId = inMovieId;
+	mPersonRfId = inPersonId;
 }
 
 //DVD::DVD(std::string inTitle, std::string inGenre)
@@ -173,11 +174,12 @@ BluRay::BluRay(std::string inTitle)
 	title = inTitle;
 }
 
-BluRay::BluRay(std::string inTitle, std::string inId)
+BluRay::BluRay(std::string inTitle, std::string inMovieId, std::string inPersonId)
 {
 	media = mediaDVD;
 	title = inTitle;
-	mRfId = inId;
+	mMovieRfId = inMovieId;
+	mPersonRfId = inPersonId;
 }
 
 //BluRay::BluRay(std::string inTitle, std::string inGenre)
@@ -196,11 +198,12 @@ BluRay4k::BluRay4k(std::string inTitle)
 	title = inTitle;
 }
 
-BluRay4k::BluRay4k(std::string inTitle, std::string inId)
+BluRay4k::BluRay4k(std::string inTitle, std::string inMovieId, std::string inPersonId)
 {
 	media = mediaDVD;
 	title = inTitle;
-	mRfId = inId;
+	mMovieRfId = inMovieId;
+	mPersonRfId = inPersonId;
 }
 
 //BluRay4k::BluRay4k(std::string inTitle, std::string inGenre)

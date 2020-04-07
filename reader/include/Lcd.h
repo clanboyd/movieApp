@@ -22,13 +22,23 @@ class Lcd
     Lcd(){};
     // Destructor
     ~Lcd(){};
+    enum CHECK_IO
+    { 
+        MOVIE_CHECK_IO, 
+        PERSON_CHECK_IO, 
+        MOVIE_OUT_IO,
+        MOVIE_OUT_ERR_IO, 
+        MOVIE_IN_IO, 
+        MOVIE_IN_ERR_IO, 
+        IO_UNKNOWN
+    };
 
     void Init();
     void PulseEnable();
     void Lcd_Byte(char bits);
     void SendCmd(char cmd);
     void SendData(char* s, char inLine);
-    void SendCancel(char inLine);
+    void SendCancel(char inLine, bool inMovArr = true);
     void SendDataNoArrow(char* s);
     void SendSpecChar(char bits);
     void ClearBits();
@@ -37,7 +47,7 @@ class Lcd
 	void ArrowUp();
 	void ArrowDown();
 	char GetArrowLoc() { return mArrowLoc; }
-	void CheckInOut(char s);
+	void WriteLcd(const CHECK_IO &rcheck);
 	bool GetLcdMutex();
 	bool RelLcdMutex();
 

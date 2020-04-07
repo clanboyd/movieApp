@@ -2,14 +2,17 @@
 #define DEFINITIONS_H
 
 #include "bcm2835.h"
+#include <string>
 
-//#define PIN_RED_LIGHT RPI_V2_GPIO_P1_26
-#define PIN_UP_BUTTON RPI_V2_GPIO_P1_22
-#define PIN_YELLOW_LIGHT RPI_V2_GPIO_P1_05
-#define PIN_DOWN_BUTTON RPI_V2_GPIO_P1_23
+#define PIN_START_BUTTON RPI_V2_GPIO_P1_22
+#define PIN_UP_BUTTON RPI_V2_GPIO_P1_05
+#define PIN_DOWN_BUTTON RPI_V2_GPIO_P1_03
+
 #define PIN_GREEN_LIGHT RPI_V2_GPIO_P1_24
-#define PIN_GREEN_BUTTON RPI_V2_GPIO_P1_03
+#define PIN_PURPLE_LIGHT RPI_V2_GPIO_P1_23
+
 #define PIN_RFID_RESET RPI_V2_GPIO_P1_26
+
 #define LCD_BL RPI_V2_GPIO_P1_07
 #define LCD_RS RPI_V2_GPIO_P1_18
 #define LCD_E RPI_V2_GPIO_P1_16
@@ -18,14 +21,31 @@
 #define LCD_D6 RPI_V2_GPIO_P1_12
 #define LCD_D7 RPI_V2_GPIO_P1_11
 
+const std::string UNK_MOVIE="Unknown Movie";
+const std::string UNK_PERSON="Unknown Person";
+const std::string IO_SUCCESS="SUCCESS";
+const std::string IO_ERROR="ERROR";
+
 enum MEDIA_COMMAND_TYPE 
 { 
-	MEDIA_OUT			= 48, 
-	MEDIA_IN			= 49, 
-	MEDIA_PERSON_OUT	= 50, 
-	MEDIA_PERSON_IN		= 51, 
-	MEDIA_TITLE			= 52, 
-	NUM_COMMANDS 		= 53
+	MEDIA_MOVIE_FIND	= 48, 
+	MEDIA_PERSON_FIND	= 49, 
+	MEDIA_OUT			= 50, 
+	MEDIA_IN			= 51, 
+	MEDIA_PERSON_OUT	= 52, 
+	MEDIA_PERSON_IN		= 53, 
+	MEDIA_TITLE			= 54, 
+	NUM_COMMANDS 		= 55
+};
+
+enum USER_RESULT
+{ 
+	USER_CANCEL			= 0, 
+	USER_CONTINUE		= 1, 
+	USER_SUCCESS		= 2, 
+	USER_FAILURE		= 3, 
+	USER_ERROR  		= 4, 
+	MAX_USER 		    = 5
 };
 
 #endif // DEFINITIONS_H

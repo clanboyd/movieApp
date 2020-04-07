@@ -40,8 +40,10 @@ class Socket
 	int CheckQuery(std::string inQuery);
     int mServerSock;
     int mClientSock;
+    int mNewSock;
     int mPort;
-	struct sockaddr_in mService;
+	struct sockaddr_in mServer;
+	struct sockaddr_in mClient;
 	fd_set mReadfds;
 	int mMaxSd;
 	int mSd;

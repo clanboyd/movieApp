@@ -1,5 +1,14 @@
 #include "Controls.h"
 
+struct PerformArgs
+{     
+    Controls *obj; 
+    std::string error;
+    std::string id;
+    bool result;
+    MEDIA_COMMAND_TYPE type;
+};
+
 Controls::Controls()
 {
     // Get Serial Pointer
@@ -18,32 +27,36 @@ bool Controls::Init()
     //  Set RFID Reset OFF
     bcm2835_gpio_write(PIN_RFID_RESET, LOW);
 
-    // Set Green LED
-    bcm2835_gpio_fsel(PIN_GREEN_LIGHT, BCM2835_GPIO_FSEL_OUTP);
-    // Set Green Button
-    bcm2835_gpio_fsel(PIN_GREEN_BUTTON, BCM2835_GPIO_FSEL_INPT);
-    //  Set Green button as pullup
-    bcm2835_gpio_set_pud(PIN_GREEN_BUTTON, BCM2835_GPIO_PUD_UP);
-    //  Set Green button OFF
-    bcm2835_gpio_write(PIN_GREEN_LIGHT, LOW);
+    // Set Start Button
+    bcm2835_gpio_fsel(PIN_START_BUTTON, BCM2835_GPIO_FSEL_INPT);
+    //  Set Start button as pullup
+    bcm2835_gpio_set_pud(PIN_START_BUTTON, BCM2835_GPIO_PUD_UP);
+    // And a low detect enable
+    //bcm2835_gpio_len(PIN_START_BUTTON);
 
-    // Set Yellow LED
-    bcm2835_gpio_fsel(PIN_YELLOW_LIGHT, BCM2835_GPIO_FSEL_OUTP);
     // Set Down Button
     bcm2835_gpio_fsel(PIN_DOWN_BUTTON, BCM2835_GPIO_FSEL_INPT);
     //  Set Down button as pullup
     bcm2835_gpio_set_pud(PIN_DOWN_BUTTON, BCM2835_GPIO_PUD_UP);
-    //  Set Yellow button OFF
-    bcm2835_gpio_write(PIN_YELLOW_LIGHT, LOW);
+    // And a low detect enable
+    bcm2835_gpio_len(PIN_DOWN_BUTTON);
 
-    // Set Red LED
-//    bcm2835_gpio_fsel(PIN_RED_LIGHT, BCM2835_GPIO_FSEL_OUTP);
     // Set Up Button
     bcm2835_gpio_fsel(PIN_UP_BUTTON, BCM2835_GPIO_FSEL_INPT);
     //  Set Up button as pullup
     bcm2835_gpio_set_pud(PIN_UP_BUTTON, BCM2835_GPIO_PUD_UP);
-    //  Set Red button OFF
-//    bcm2835_gpio_write(PIN_RED_LIGHT, LOW);
+    // And a low detect enable
+    bcm2835_gpio_len(PIN_UP_BUTTON);
+
+    // Set Green LED
+    bcm2835_gpio_fsel(PIN_GREEN_LIGHT, BCM2835_GPIO_FSEL_OUTP);
+    //  Set Green Light OFF
+    bcm2835_gpio_write(PIN_GREEN_LIGHT, LOW);
+
+    // Set Purple LED
+    bcm2835_gpio_fsel(PIN_PURPLE_LIGHT, BCM2835_GPIO_FSEL_OUTP);
+    //  Set Purple button OFF
+    bcm2835_gpio_write(PIN_PURPLE_LIGHT, LOW);
 
     mLcd = new Lcd();
     mLcd->Init();
@@ -72,30 +85,73 @@ void* Controls::Start(void* obj)
 
 void Controls::Start()
 {
-    pthread_t PerformAction;
-//	mStageStack.push(STARTUP);
+    bool runPa = true;
+    pthread_t action;
     std::string str;
     while (1)
     {
-        if ( 0 == bcm2835_gpio_lev(PIN_GREEN_BUTTON) )
+        if ( 0 == bcm2835_gpio_lev(PIN_START_BUTTON) )
         {
-//			std::cout<<"start button pressed"<<std::endl;
+            sleep(1);
+			std::cout<<"Button Pressed"<<std::endl;
 			mLcd->InitialDisplay();
             bcm2835_gpio_write(PIN_GREEN_LIGHT, HIGH);
-			//if ( STARTUP == mStageStack.top() )
-			//{
-				sleep(1); // allow current to go back to 1, read event not working in this kernel
-                pthread_create(&PerformAction, NULL, Controls::PerformAction, this);
-                pthread_join(PerformAction,NULL);
-                //pthread_cancel(PerformAction);
-			//}
+            while (runPa)
+            {
+                if ( 0 == bcm2835_gpio_lev(PIN_START_BUTTON) )
+                {
+                    // Proceed to CheckOut Movie
+        			if ( 0x0 == mLcd->GetArrowLoc() )
+        			{
+                        if ( mLcd->GetLcdMutex() ) 
+                        { 
+                            PerformArgs myP;
+                            myP.obj = this;
+                            myP.error = UNK_MOVIE;
+                            myP.type = MEDIA_MOVIE_FIND;
+                            myP.result = MAX_USER;
+                            myP.movieid = "0";
+                            myP.personid = "0";
+                            pthread_create(&action, NULL, &PerformAction,&myP);
+                            pthread_join(action,NULL);
+                            if ( myP.result != USER_CANCEL ) 
+                            {
+                                myP.error = UNK_PERSON;
+                                myP.type = MEDIA_PERSON_FIND;
+                                pthread_create(&action, NULL, &PerformAction,&myP);
+                                pthread_join(action,NULL);
+    
+                                if ( ( myP.movieid != "0" && myP.personid != "0" ) && myP.result == USER_CONTINUE )
+                                {
+                                    myP.error = IO_SUCCESS;
+                                    myP.type = MEDIA_OUT;
+                                    pthread_create(&action, NULL, &PerformAction,&myP);
+                                    pthread_join(action,NULL);
+                                }
+                            }
+                        }
+        			}
+                    // Cancel
+        			else
+        			{
+                        //if ( mLcd->GetLcdMutex() ) 
+                        //{ 
+            		//		PerformCheckInOut();
+                    //        mLcd->RelLcdMutex();
+                     //       runPa=false;
+                      //  }
+        			}
+        			sleep(1); // allow current to go back to 1, read event not working in this kernel
+        		}
+            }
+            // Go back to Initial Display
+			mLcd->InitialDisplay();
         }
     }
 };
 
-void Controls::Read()
+void Controls::Read(PerformArgs *pArgsIn)
 {
-    //pthread_t GreenLedBlink;
     bool runRead=true;
 	std::string id;
     while ( runRead )
@@ -104,86 +160,116 @@ void Controls::Read()
     	if ( true == mSerPointer->Read(id) )
     	{
 			std::cout<<"Sending: "<<id<<std::endl;
-	    	mClientSock->Send(MEDIA_OUT, id); 
+	    	mClientSock->Send(pArgsIn->type, id); 
 	    	std::string tmp = mClientSock->Receive(); 
-            if ( tmp != "Unknown Movie" )
+            if ( tmp != pArgsIn->error )
             {
                 SendToLcd(tmp);
+                mLcd->RelLcdMutex(); // Allow up/down arrow
 				sleep(1); 
                 bcm2835_gpio_write(PIN_RFID_RESET, LOW);
-//                pthread_create(&GreenLedBlink, NULL, Controls::GreenLedBlink, this);
-//                while (secondRead == true )
+                // Check if Cancel or Proceed
+                while ( 1 == bcm2835_gpio_lev(PIN_START_BUTTON) ) {}
+                // If Arrow Location is 0, then Proceed
+                if ( 0x0 == mLcd->GetArrowLoc() )
                 {
-//       	            if ( true == mSerPointer->Read(mId) )
-//                    {
-//                        ShowId();
-//                        secondRead=false;
-//                    }
+                    switch ( pArgsIn->type )
+                    {
+                        case MEDIA_MOVIE_FIND:
+                        {
+                            pArgsIn->movieid = id;
+                            pArgsIn->moviename = tmp;
+                            break;
+                        }
+                        case MEDIA_PERSON_FIND:
+                        {
+                            pArgsIn->personid = id;
+                            pArgsIn->personname = tmp;
+                            break;
+                        }
+                        default:
+                        {
+                            break;
+                        }
+                    }
+                    pArgsIn->result = USER_CONTINUE;
+                    runRead=false;
                 }
-//                pthread_cancel(GreenLedBlink);
+                // If Arrow Location is 1, then Cancel
+                else
+                {
+                    pArgsIn->result = USER_CANCEL;
+                    runRead=false;
+                }
             }
             else
             {
                 SendErrorToLcd(tmp);
 				sleep(1); 
                 bcm2835_gpio_write(PIN_RFID_RESET, LOW);
+                pArgsIn->result = USER_ERROR;
                 // Wait for Cancel
-                while ( 0 != bcm2835_gpio_lev(PIN_GREEN_BUTTON) ) {}
+                while ( 1 == bcm2835_gpio_lev(PIN_START_BUTTON) ) {}
                 runRead=false;
             }
         }
-        //bcm2835_gpio_write(PIN_GREEN_LIGHT, LOW);
 	}
 }
 
-void Controls::PerformCheckOut()
+void Controls::PerformCheckOut(PerformArgs *pArgsIn)
 {
-	mLcd->CheckInOut(0x0);
+	mClientSock->Send(pArgsIn->type, pArgsIn->movieid + pArgsIn->personid); 
+   	if ( IO_SUCCESS == mClientSock->Receive() )
+    {
+        pArgsIn->result = USER_SUCCESS;
+		WriteLcd(Lcd::MOVIE_OUT_IO);
+    }
+    else
+    {
+        pArgsIn->result = USER_FAILURE;
+		WriteLcd(Lcd::MOVIE_OUT_ERR_IO);
+    }
 }
 
-void Controls::PerformCheckIn()
+void Controls::WriteLcd(const Lcd::CHECK_IO &rcheck)
 {
-	mLcd->CheckInOut(0x1);
+	mLcd->WriteLcd(rcheck);
 }
 
 void* Controls::PerformAction(void* obj)
 {
-    ((Controls *) obj)->PerformAction();
-    return obj;
+    PerformArgs *args = (PerformArgs*)obj;
+    (args->obj)->PerformAction(args);
+    return args;
 }
 
-void Controls::PerformAction()
+void Controls::PerformAction(PerformArgs *pArgsIn)
 {
-    bool runPa = true;
-    while ( runPa )
+    switch ( pArgsIn->type )
     {
-        if ( 0 == bcm2835_gpio_lev(PIN_GREEN_BUTTON) )
+        case MEDIA_MOVIE_FIND:
         {
-			//std::cout<<"start button pressed again"<<std::endl;
-			if ( 0x0 == mLcd->GetArrowLoc() )
-			{
-                if ( mLcd->GetLcdMutex() ) 
-                { 
-                    //while ( 0 != bcm2835_gpio_lev(PIN_GREEN_BUTTON) ){}
-    				PerformCheckOut();
-    				Read();
-                    mLcd->RelLcdMutex();
-                    runPa=false;
-                }
-			}
-			else
-			{
-                if ( mLcd->GetLcdMutex() ) 
-                { 
-				    //mStageStack.push(CHECKIN);
-    				PerformCheckIn();
-                    mLcd->RelLcdMutex();
-                    runPa=false;
-                }
-			}
-			sleep(1); // allow current to go back to 1, read event not working in this kernel
-		}
-	}
+			WriteLcd(Lcd::MOVIE_CHECK_IO);
+   	        Read(pArgsIn);
+            break;
+        }
+        case MEDIA_PERSON_FIND:
+        {
+			WriteLcd(Lcd::PERSON_CHECK_IO);
+   	        Read(pArgsIn);
+            break;
+        }
+        case MEDIA_OUT:
+        {
+            PerformCheckOut(pArgsIn);
+            break;
+        }
+        default:
+        {
+
+            break;
+        }
+    }
 }
 
 void* Controls::CheckUpButton(void* obj)
@@ -194,16 +280,14 @@ void* Controls::CheckUpButton(void* obj)
 
 void Controls::CheckUpButton()
 {
-    uint8_t value = 0;
     while (1)
     {
-        // Read some data
-        value = bcm2835_gpio_lev(PIN_UP_BUTTON);
-        if ( 0 == value )
+        if ( bcm2835_gpio_eds(PIN_UP_BUTTON) )
         {
-            bcm2835_gpio_write(PIN_YELLOW_LIGHT, HIGH);
+		    bcm2835_gpio_set_eds(PIN_UP_BUTTON);
+            bcm2835_gpio_write(PIN_PURPLE_LIGHT, HIGH);
 			mLcd->ArrowUp();
-            bcm2835_gpio_write(PIN_YELLOW_LIGHT, LOW);
+            bcm2835_gpio_write(PIN_PURPLE_LIGHT, LOW);
         }
     }
 };
@@ -216,16 +300,14 @@ void* Controls::CheckDownButton(void* obj)
 
 void Controls::CheckDownButton()
 {
-    uint8_t value = 0;
     while (1)
     {
-        // Read some data
-        value = bcm2835_gpio_lev(PIN_DOWN_BUTTON);
-        if ( 0 == value )
+        if ( bcm2835_gpio_eds(PIN_DOWN_BUTTON) )
         {
-            bcm2835_gpio_write(PIN_YELLOW_LIGHT, HIGH);
+		    bcm2835_gpio_set_eds(PIN_DOWN_BUTTON);
+            bcm2835_gpio_write(PIN_PURPLE_LIGHT, HIGH);
 			mLcd->ArrowDown();
-            bcm2835_gpio_write(PIN_YELLOW_LIGHT, LOW);
+            bcm2835_gpio_write(PIN_PURPLE_LIGHT, LOW);
         }
     }
 };
@@ -251,6 +333,7 @@ void Controls::SendToLcd(const std::string &rInStr)
 {
  	mLcd->ClearDisplay();
     mLcd->SendData((char*)rInStr.c_str(),0x0);
+    mLcd->SendCancel(0x1,false);
 }
 
 void Controls::SendErrorToLcd(const std::string &rInStr)
@@ -258,5 +341,11 @@ void Controls::SendErrorToLcd(const std::string &rInStr)
  	mLcd->ClearDisplay();
     mLcd->SendDataNoArrow((char*)rInStr.c_str());
     mLcd->SendCancel(0x1);
+}
+
+void Controls::waitForEncoderTick(uint8_t pin)
+{
+    bcm2835_gpio_set_eds(pin);//clear the previous event. makes sure that only next event is detected
+    while(!bcm2835_gpio_eds(pin)){std::cout<<"waiting for next tick"<<std::endl;};//waits until next event/tick
 }
 

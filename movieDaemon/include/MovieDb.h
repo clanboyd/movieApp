@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "Movies.h"
+#include "People.h"
 
 class MovieDb 
 {
@@ -12,10 +13,14 @@ public:
 	MovieDb(){ImportFile();};
 	~MovieDb(){};
 	std::string FindTitleById(const std::string &rInId);
+    std::string FindPersonById(const std::string &rInId);
+    std::string CheckOutMovie(const std::string &rInId);
 private:
 	void ImportFile();
-	void ParseFile(std::string fileNameIn, std::vector<Media*> &inVector);
+	void ParseFileMovie(std::string fileNameIn, std::vector<Media*> &inVector);
+	void ParseFilePeople(std::string fileNameIn, std::vector<People*> &inVector);
 	std::vector<Media*> mMovieVector;
+	std::vector<People*> mPeopleVector;
 
 };
 

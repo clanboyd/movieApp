@@ -5,6 +5,10 @@ const char* LCD_CHECKOUT_IN_MESSAGE = "Check-In";
 const char* LCD_SCAN_CARD_MESSAGE = "Scan Card Now";
 const char* LCD_SCAN_MOVIE_MESSAGE = "Scan Movie Now";
 const char* LCD_CANCEL_MESSAGE = "Cancel";
+const char* LCD_CHECK_OUT_SUC_MESSAGE = "Checked Out";
+const char* LCD_CHECK_IN_SUC_MESSAGE = "Checked In";
+const char* LCD_CHECK_OUT_ERR_MESSAGE = "Check Out Err";
+const char* LCD_CHECK_IN_ERR_MESSAGE = "Check In Err";
 
 void Lcd::Init()
 {
@@ -26,13 +30,12 @@ void Lcd::Init()
 
     SendCmd(LCD_CMD_INIT);
     SendCmd(LCD_CMD_4_BIT);
-    SendCmd(0x06); // Increment Address by 1, Shift cursor to right
     SendCmd(0x0E); // Display ON, Cursor ON, Cursor Blinking
     SendCmd(0x28); 
     SendCmd(LCD_CMD_RET_HOME); // Return to home
-	ClearDisplay();
+    ClearDisplay();
     delay(2); 
-	bcm2835_gpio_write(LCD_BL, LOW);
+    bcm2835_gpio_write(LCD_BL, LOW);
 }
 
 void Lcd::PulseEnable()
@@ -92,7 +95,7 @@ void Lcd::SendCmd( char cmd )
 {
     bcm2835_gpio_write (LCD_RS, LOW) ; 
     Lcd_Byte(cmd);
-    delay(0.5); 
+    delay(2); 
 }
 
 void Lcd::SendDataNoArrow(char *s) 
@@ -124,19 +127,25 @@ void Lcd::SendData(char *s, char inLine)
     }
 }
 
-void Lcd::SendCancel(char inLine) 
+void Lcd::SendCancel(char inLine, bool inMovArr) 
 {
     bcm2835_gpio_write (LCD_RS, HIGH) ; 
 	if ( 0x0 == inLine ) // put cancel on line 1
 	{
-	    mArrowLoc=0x0;
         SendCmd(LCD_CMD_BEG_LINE_1); // Set Cursor to beginning of line 1
+        if ( inMovArr )
+        {
+	        mArrowLoc=0x0;
+        }
 	    SendData((char*)LCD_CANCEL_MESSAGE,0x0);
 	}
 	else // put cancel on line 2
 	{
-	    mArrowLoc=0x1;
         SendCmd(LCD_CMD_BEG_LINE_2); // Set Cursor to beginning of line 2
+        if ( inMovArr )
+        {
+	        mArrowLoc=0x1;
+        }
 	    SendData((char*)LCD_CANCEL_MESSAGE,0x1);
 	}
 }
@@ -172,18 +181,37 @@ void Lcd::InitialDisplay()
     SendCmd(0x02);	// Return Home
 }
 
-void Lcd::CheckInOut(char s)
+void Lcd::WriteLcd(const CHECK_IO &rcheck)
 {
 	mArrowLoc=0x0; // set arrown to first line
    	ClearDisplay();
-	if ( 0x0 == s )
-	{
-		SendDataNoArrow((char*)LCD_SCAN_MOVIE_MESSAGE);
-	}
-	else
-	{
-		SendDataNoArrow((char*)LCD_SCAN_CARD_MESSAGE);
-	}
+    switch ( rcheck )
+    {
+        case MOVIE_CHECK_IO:
+        {
+		    SendDataNoArrow((char*)LCD_SCAN_MOVIE_MESSAGE);
+            break;
+        }
+        case PERSON_CHECK_IO:
+        {
+		    SendDataNoArrow((char*)LCD_SCAN_CARD_MESSAGE);
+            break;
+        }
+        case MOVIE_OUT_IO:
+        {
+		    SendDataNoArrow((char*)LCD_CHECK_OUT_SUC_MESSAGE);
+            break;
+        }
+        case MOVIE_OUT_ERR_IO:
+        {
+		    SendDataNoArrow((char*)LCD_CHECK_OUT_ERR_MESSAGE);
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
 }
 
 void Lcd::ArrowUp()

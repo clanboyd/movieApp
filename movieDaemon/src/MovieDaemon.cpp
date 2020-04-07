@@ -35,10 +35,10 @@ int Socket::CreateSocket()
         return 1;
     }
 
-    memset(&mService, 0, sizeof(mService));
-    mService.sin_family      = AF_INET;
-    mService.sin_addr.s_addr = INADDR_ANY;
-    mService.sin_port        = htons(mPort);
+    memset(&mServer, 0, sizeof(mServer));
+    mServer.sin_family      = AF_INET;
+    mServer.sin_addr.s_addr = INADDR_ANY;
+    mServer.sin_port        = htons(mPort);
 
     if ( setsockopt(mServerSock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))
     {
@@ -47,7 +47,7 @@ int Socket::CreateSocket()
         return 1;
     }
 
-    if (bind(mServerSock, (struct sockaddr *)&mService,  sizeof(mService))<0) 
+    if (bind(mServerSock, (struct sockaddr *)&mServer,  sizeof(mServer))<0) 
     { 
         printf("Socket Bind Failed: %s.", strerror(errno));
         close(mServerSock);
@@ -66,12 +66,11 @@ int Socket::CreateSocket()
 
 int Socket::Listen()
 {
-    int addrlen = sizeof(mService);
 	int i=0;
-	unsigned int newSocket;
 	char *message = (char*)"Movies Daemon"; 
-	char buffer[1025];  //data buffer of 1K
+	char buffer[1025];  
     int valread=0;
+    int addrlen = sizeof(mClient);
 
 	while (1)
 	{
@@ -110,19 +109,25 @@ int Socket::Listen()
         //If something happened on the master socket, //then its an incoming connection 
         if (FD_ISSET(mServerSock, &mReadfds))
         {
-            if ((newSocket = accept(mServerSock,
-                    (struct sockaddr *)&mService, (socklen_t*)&mService))<0)
+            if ((mNewSock = accept(mServerSock,
+                    (struct sockaddr *)&mClient, (socklen_t*)&addrlen))<0)
             {
                 perror("accept");
                 exit(EXIT_FAILURE);
             }
 
+            getpeername(mNewSock , (struct sockaddr*)&mClient, (socklen_t*)&addrlen);
             //inform user of socket number - used in send and receive commands
             printf("New connection , socket fd is %d , ip is : %s , port : %d \n", \
-                newSocket, inet_ntoa(mService.sin_addr) , ntohs (mService.sin_port));
+                mNewSock, inet_ntoa(mClient.sin_addr) , ntohs (mClient.sin_port));
+
+	        if ( mNewSock < 0 )
+	        {
+	   	        exit (EXIT_FAILURE);
+	        }
 
             //send new connection greeting message
-            if( (unsigned int)send(newSocket, message, strlen(message), 0) 
+            if( (unsigned int)send(mNewSock, message, strlen(message), 0) 
                 != (unsigned int)strlen(message) )
             {
                 perror("send");
@@ -136,7 +141,7 @@ int Socket::Listen()
                 //if position is empty
                 if( mClientSocket[i] == 0 )
                 {
-                    mClientSocket[i] = newSocket;
+                    mClientSocket[i] = mNewSock;
                     printf("Adding to list of sockets as %d\n" , i);
                     break;
                 }
@@ -155,10 +160,10 @@ int Socket::Listen()
                 if ((valread = read(mSd , buffer, 1024)) == 0)
                 {
                     //Somebody disconnected , get his details and print
-                    getpeername(mSd , (struct sockaddr*)&mService, \
+                    getpeername(mSd , (struct sockaddr*)&mClient, \
                         (socklen_t*)&addrlen);
                     printf("Host disconnected , ip %s , port %d \n" ,
-                          inet_ntoa(mService.sin_addr) , ntohs(mService.sin_port));
+                          inet_ntoa(mClient.sin_addr) , ntohs(mClient.sin_port));
 
                     //Close the socket and mark as 0 in list for reuse
                     close( mSd );
@@ -184,9 +189,19 @@ int Socket::CheckQuery(std::string inQuery)
 {
 	switch ( MEDIA_COMMAND_TYPE(inQuery[0]) )
 	{
-		case MEDIA_OUT:
+		case MEDIA_MOVIE_FIND:
 		{
 			SendReply(mMdb->FindTitleById(inQuery.substr(1)));
+			break;
+		}
+		case MEDIA_PERSON_FIND:
+		{
+			SendReply(mMdb->FindPersonById(inQuery.substr(1)));
+			break;
+		}
+		case MEDIA_OUT:
+		{
+			SendReply(mMdb->CheckOutMovie(inQuery.substr(1)));
 			break;
 		}
 		default:

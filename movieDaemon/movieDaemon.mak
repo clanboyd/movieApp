@@ -6,6 +6,7 @@ TARGET=movieDaemon
 SOURCES= src/MovieDaemon.cpp \
 		 src/MovieDb.cpp \
 		 src/Movies.cpp \
+		 src/People.cpp \
          src/main.cpp
 
 OBJS=$(SOURCES:.cpp=.o)
@@ -23,8 +24,8 @@ clean:
 	rm -rf src/*.o
 
 install:
-	scp src/*cpp yoda@raspberrypi:/home/yoda/movieApp/movieDaemon/src
-	scp include/*h yoda@raspberrypi:/home/yoda/movieApp/movieDaemon/include
-	scp movieDaemon yoda@raspberrypi:/home/yoda/movieApp/movieDaemon/movieDaemon
+	scp src/*.cpp yoda@raspberrypi:/home/yoda/movieApp/movieDaemon/src
+	scp include/*.h yoda@raspberrypi:/home/yoda/movieApp/movieDaemon/include
+	scp data/*.csv yoda@raspberrypi:/home/yoda/movieApp/movieDaemon/data
 	scp movieDaemon.mak yoda@raspberrypi:/home/yoda/movieApp/movieDaemon/movieDaemon.mak
 
