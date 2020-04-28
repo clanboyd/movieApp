@@ -47,6 +47,7 @@ class Controls
     void Read(PerformArgs *pArgsIn);
     void waitForEncoderTick(uint8_t pin);
     void PerformCheckOut(PerformArgs *pArgsIn);
+    void PerformCheckIn(PerformArgs *pArgsIn);
 
 protected:
 

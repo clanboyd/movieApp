@@ -5,7 +5,6 @@ Socket::Socket( void )
     mMdb=NULL;
     mPort=50001; 
 	CreateSocket();
-	mMdb = new MovieDb();
 };
 
 Socket::~Socket( void )
@@ -15,6 +14,18 @@ Socket::~Socket( void )
         delete mMdb;
     }
 };
+
+int Socket::InitDb()
+{
+	mMdb = new dbClass();
+    if ( 0 != mMdb->DbInit() )
+    {
+        std::cout<<"DB init failed"<<std::endl;
+        delete mMdb;
+        return 1;
+    }
+    return 0;
+}
 
 int Socket::CreateSocket()
 {
@@ -191,17 +202,22 @@ int Socket::CheckQuery(std::string inQuery)
 	{
 		case MEDIA_MOVIE_FIND:
 		{
-			SendReply(mMdb->FindTitleById(inQuery.substr(1)));
+			SendReply(mMdb->QueryMovieByKey(inQuery.substr(1)));
 			break;
 		}
 		case MEDIA_PERSON_FIND:
 		{
-			SendReply(mMdb->FindPersonById(inQuery.substr(1)));
+			SendReply(mMdb->QueryPersonByKey(inQuery.substr(1)));
 			break;
 		}
 		case MEDIA_OUT:
 		{
-			SendReply(mMdb->CheckOutMovie(inQuery.substr(1)));
+			SendReply(mMdb->CheckOutMovie(inQuery.substr(1,12),inQuery.substr(13,12)));
+			break;
+		}
+		case MEDIA_IN:
+		{
+			SendReply(mMdb->CheckInMovie(inQuery.substr(1,12),inQuery.substr(13,12)));
 			break;
 		}
 		default:

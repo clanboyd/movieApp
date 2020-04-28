@@ -28,12 +28,27 @@ void Lcd::Init()
     // Set LED D7
     bcm2835_gpio_fsel(LCD_D7, BCM2835_GPIO_FSEL_OUTP);
 
-    SendCmd(LCD_CMD_INIT);
-    SendCmd(LCD_CMD_4_BIT);
-    SendCmd(0x0E); // Display ON, Cursor ON, Cursor Blinking
-    SendCmd(0x28); 
-    SendCmd(LCD_CMD_RET_HOME); // Return to home
+    FourBitInit();
     ClearDisplay();
+    DisableLineWrap();
+
+    char command = LCD_DISPLAY_SET;         // display set
+    command |= LCD_DISPLAY_SET_ON;          // display ON
+    command |= LCD_DISPLAY_SET_CURSOR_ON;   // cursor ON
+    command |= LCD_DISPLAY_SET_BLINK_OFF;   // blink OFF
+    SendCmd(command);
+
+    command = LCD_FUNCTION_SET;             // function set
+    command |= LCD_FUNCTION_DATA_LEN_4;     // 4 bit length
+    command |= LCD_FUNCTION_2_LINE;         // 2 lines
+    SendCmd(command);
+
+    command = LCD_ENTRY_MODE_SET;           // Entry Mode Set
+    command |= LCD_ENTRY_MODE_SET_INC;      // Increment
+    command |= LCD_ENTRY_MODE_SET_NO_SHIFT; // No Shift
+    SendCmd(command);
+
+    ReturnHome();
     delay(2); 
     bcm2835_gpio_write(LCD_BL, LOW);
 }
@@ -98,12 +113,43 @@ void Lcd::SendCmd( char cmd )
     delay(2); 
 }
 
+short Lcd::GetSize(char *pIn)
+{
+    short j=0;
+    while ( *(pIn) !='\0')
+    {
+        pIn++;
+        j++;
+    }
+    return j;
+}
+
 void Lcd::SendDataNoArrow(char *s) 
 {
+    //short size = GetSize(s);
+    mLine1Buffer = s;
+    
     bcm2835_gpio_write (LCD_RS, HIGH) ; 
-    while(*s)
+    if ( false == GetLineWrap() )
     {
-	    Lcd_Byte(*s++);
+        for(short i=0; i<40; ++i)
+        {
+            if ( ( (int)*s >= 32 ) && ( (int)*s <=127 ) )
+            {
+    	        Lcd_Byte(*s++);
+            }
+        }
+
+    }
+    else
+    {
+        while(*s)
+        {
+            if ( ( (int)*s >= 32 ) && ( (int)*s <=127 ) )
+            {
+    	        Lcd_Byte(*s++);
+            }
+        }
     }
 
 }
@@ -123,7 +169,10 @@ void Lcd::SendData(char *s, char inLine)
 	}
     while(*s)
     {
-	    Lcd_Byte(*s++);
+        if ( ( (int)*s >= 32 ) && ( (int)*s <=127 ) )
+        {
+	        Lcd_Byte(*s++);
+        }
     }
 }
 
@@ -164,12 +213,6 @@ void Lcd::ClearBits()
 	bcm2835_gpio_write(LCD_D7,LOW);
 }
 
-void Lcd::ClearDisplay()
-{
-    SendCmd(0x01); 
-    delay(2); 
-}
-
 void Lcd::InitialDisplay()
 {
 	mArrowLoc=0x0;
@@ -178,7 +221,7 @@ void Lcd::InitialDisplay()
 	SendData((char*)LCD_CHECKOUT_OUT_MESSAGE,0x0);
     SendCmd(0xC0);	// Next line
 	SendData((char*)LCD_CHECKOUT_IN_MESSAGE,0x1);
-    SendCmd(0x02);	// Return Home
+    ReturnHome();
 }
 
 void Lcd::WriteLcd(const CHECK_IO &rcheck)
@@ -207,6 +250,16 @@ void Lcd::WriteLcd(const CHECK_IO &rcheck)
 		    SendDataNoArrow((char*)LCD_CHECK_OUT_ERR_MESSAGE);
             break;
         }
+        case MOVIE_IN_IO:
+        {
+		    SendDataNoArrow((char*)LCD_CHECK_IN_SUC_MESSAGE);
+            break;
+        }
+        case MOVIE_IN_ERR_IO:
+        {
+		    SendDataNoArrow((char*)LCD_CHECK_IN_ERR_MESSAGE);
+            break;
+        }
         default:
         {
             break;
@@ -227,6 +280,10 @@ void Lcd::ArrowUp()
         	SendSpecChar(LCD_DATA_ARROW); // arrow 
             RelLcdMutex();
     	}
+        else // Set arrow location for LCD user to write
+        {
+    		mArrowLoc=0x0; // set arrown to first line
+        }
     }
 	// else do nothing
 }
@@ -243,6 +300,10 @@ void Lcd::ArrowDown()
             SendCmd(LCD_CMD_BEG_LINE_2); // Set Cursor to beginning of line 2
         	SendSpecChar(LCD_DATA_ARROW); // arrow 
             RelLcdMutex();
+        }
+        else // Set arrow location for LCD user to write
+        {
+		    mArrowLoc=0x1; // set arrown to second line
         }
 	}
 	// else do nothing
@@ -269,6 +330,88 @@ bool Lcd::RelLcdMutex()
     }
     return false;
 
+}
+
+void Lcd::FourBitInit()
+{
+    SendCmd(LCD_FUNCTION_SET);
+    SendCmd(LCD_FUNCTION_SET);
+    delay(2); 
+}
+
+void Lcd::ClearDisplay()
+{
+    SendCmd(LCD_CLEAR_DISPLAY); 
+    delay(2); 
+}
+
+void Lcd::ReturnHome()
+{
+    SendCmd(LCD_RETURN_HOME); 
+    delay(2); 
+}
+
+void Lcd::ScrollLeft(const short cDelay, char* s, char inLine, char cArrow)
+{
+    SendData(s,0x0);
+    SendCancel(0x1,false);
+    sleep(cDelay);
+    // If arrow location on first line
+    if ( 0x0 == mArrowLoc )
+    {
+        std::string tmp = s;
+        short size = tmp.size();
+        if ( size > 14 )
+        {
+            for ( int i=1; i< size;++i)
+            {
+                if ( 1 == bcm2835_gpio_lev(PIN_START_BUTTON) )
+                {
+                ClearDisplay();
+                ReturnHome();
+                // shift text 1
+                SendData((char*)tmp.substr(i).c_str(),inLine);
+                SendCancel(0x1,false);
+                sleep(1);
+                }
+                else
+                {
+                    return;
+                }
+            }
+        }
+        ClearDisplay();
+        ReturnHome();
+        SendData(s,0x0);
+        SendCancel(0x1,false);
+    }
+    else
+    {
+        char command = LCD_CUR_DISP_CONTROL;       //Cursor-Display Control
+        command |= LCD_CUR_DISP_DISPLAY_SHIFT;     //Display Shifts
+        command |= LCD_CUR_DISP_SHIFT_LEFT;        //Shift Left
+        for (int i=0; i<40; i++)
+        {
+            SendCmd(command);
+            sleep(1);
+        }
+    }
+}
+
+void Lcd::ScrollRight(const short cDelay, char* s, char inLine, char cArrow)
+{
+    SendData(s,0x0);
+    sleep(cDelay);
+    char command = LCD_CUR_DISP_CONTROL;       //Cursor-Display Control
+    command |= LCD_CUR_DISP_DISPLAY_SHIFT;     //Display Shifts
+    command |= LCD_CUR_DISP_SHIFT_RIGHT;       //Shift Right
+    for (int i=0; i<40; i++)
+    {
+        SendCmd(command);
+    	SendSpecChar(0x7E); // arrow 
+    	SendSpecChar(0x10); // space
+        sleep(1);
+    }
 }
 
 

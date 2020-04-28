@@ -1,4 +1,4 @@
-SUBDIRS = movieDaemon reader
+SUBDIRS = movieDaemon reader driver
 
 subdirs:
 	for dir in $(SUBDIRS); do \

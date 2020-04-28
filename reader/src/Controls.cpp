@@ -92,6 +92,7 @@ void Controls::Start()
     {
         if ( 0 == bcm2835_gpio_lev(PIN_START_BUTTON) )
         {
+            runPa = true;
             sleep(1);
 			std::cout<<"Button Pressed"<<std::endl;
 			mLcd->InitialDisplay();
@@ -129,18 +130,53 @@ void Controls::Start()
                                     pthread_join(action,NULL);
                                 }
                             }
+                            else
+                            {
+			                    mLcd->InitialDisplay();
+                            }
+                        }
+        			}
+                    // Proceed to CheckIn Movie
+                    else
+                    {
+                        if ( mLcd->GetLcdMutex() ) 
+                        { 
+                            PerformArgs myP;
+                            myP.obj = this;
+                            myP.error = UNK_MOVIE;
+                            myP.type = MEDIA_MOVIE_FIND;
+                            myP.result = MAX_USER;
+                            myP.movieid = "0";
+                            myP.personid = "0";
+                            pthread_create(&action, NULL, &PerformAction,&myP);
+                            pthread_join(action,NULL);
+                            if ( myP.result != USER_CANCEL ) 
+                            {
+                                myP.error = UNK_PERSON;
+                                myP.type = MEDIA_PERSON_FIND;
+                                pthread_create(&action, NULL, &PerformAction,&myP);
+                                pthread_join(action,NULL);
+    
+                                if ( ( myP.movieid != "0" && myP.personid != "0" ) && myP.result == USER_CONTINUE )
+                                {
+                                    myP.error = IO_SUCCESS;
+                                    myP.type = MEDIA_IN;
+                                    pthread_create(&action, NULL, &PerformAction,&myP);
+                                    pthread_join(action,NULL);
+                                }
+                            }
+                            else
+                            {
+			                    mLcd->InitialDisplay();
+                            }
                         }
         			}
                     // Cancel
-        			else
-        			{
-                        //if ( mLcd->GetLcdMutex() ) 
-                        //{ 
-            		//		PerformCheckInOut();
-                    //        mLcd->RelLcdMutex();
-                     //       runPa=false;
-                      //  }
-        			}
+//        			else
+//        			{
+//			            mLcd->InitialDisplay();
+//                        runPa=false;
+//        			}
         			sleep(1); // allow current to go back to 1, read event not working in this kernel
         		}
             }
@@ -148,7 +184,7 @@ void Controls::Start()
 			mLcd->InitialDisplay();
         }
     }
-};
+}
 
 void Controls::Read(PerformArgs *pArgsIn)
 {
@@ -223,11 +259,34 @@ void Controls::PerformCheckOut(PerformArgs *pArgsIn)
     {
         pArgsIn->result = USER_SUCCESS;
 		WriteLcd(Lcd::MOVIE_OUT_IO);
+        sleep(5);
+        mLcd->InitialDisplay();
     }
     else
     {
         pArgsIn->result = USER_FAILURE;
 		WriteLcd(Lcd::MOVIE_OUT_ERR_IO);
+        sleep(5);
+        mLcd->InitialDisplay();
+    }
+}
+
+void Controls::PerformCheckIn(PerformArgs *pArgsIn)
+{
+	mClientSock->Send(pArgsIn->type, pArgsIn->movieid + pArgsIn->personid); 
+   	if ( IO_SUCCESS == mClientSock->Receive() )
+    {
+        pArgsIn->result = USER_SUCCESS;
+		WriteLcd(Lcd::MOVIE_IN_IO);
+        sleep(5);
+        mLcd->InitialDisplay();
+    }
+    else
+    {
+        pArgsIn->result = USER_FAILURE;
+		WriteLcd(Lcd::MOVIE_IN_ERR_IO);
+        sleep(5);
+        mLcd->InitialDisplay();
     }
 }
 
@@ -262,6 +321,11 @@ void Controls::PerformAction(PerformArgs *pArgsIn)
         case MEDIA_OUT:
         {
             PerformCheckOut(pArgsIn);
+            break;
+        }
+        case MEDIA_IN:
+        {
+            PerformCheckIn(pArgsIn);
             break;
         }
         default:
@@ -332,7 +396,8 @@ void Controls::GreenLedBlink()
 void Controls::SendToLcd(const std::string &rInStr)
 {
  	mLcd->ClearDisplay();
-    mLcd->SendData((char*)rInStr.c_str(),0x0);
+    mLcd->ScrollLeft(2,(char*)rInStr.c_str(),0x0,0x1);
+    //mLcd->SendData((char*)rInStr.c_str(),0x0);
     mLcd->SendCancel(0x1,false);
 }
 

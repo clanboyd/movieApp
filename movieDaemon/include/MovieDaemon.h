@@ -15,7 +15,7 @@
 #include <cstring>
 #include <unistd.h>
 #include <fcntl.h>
-#include "MovieDb.h"
+#include "dbClass.h"
 #include "Definitions.h"
 
 class Socket
@@ -28,7 +28,7 @@ class Socket
     ~Socket( void );
 
     int Listen();
-    int SetupMedia();
+    int InitDb();
 
 //    enum QUERY{ QUERY_TITLE, QUERY_UNKNOWN};
 
@@ -51,8 +51,8 @@ class Socket
 	int mClientSocket[2];
 	int mActivity;
 
-	MovieDb *mMdb;
-//    Media *mMedia;
+//	MovieDb *mMdb;
+    dbClass *mMdb;
 
 };  
 

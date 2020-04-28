@@ -8,7 +8,7 @@ SOURCES= src/MySerial.cpp \
          src/Controls.cpp \
          src/Lcd.cpp \
          src/ClientSocket.cpp \
-         src/reader.cpp
+         src/reader.cpp 
 
 OBJS=$(SOURCES:.cpp=.o)
 
